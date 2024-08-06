@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "demo_garden"
+  site-url: "https://gkteco.github.io/demo_garden"
+  description: "A build system for managing and distributing demos"
+  repo-branch: main
+  repo-url: "https://github.com/gkteco/demo_garden"
