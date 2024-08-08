@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['generate_sample_requirements_txt', 'generate_sample_readme_content', 'generate_sample_fasthtml_content',
            'generate_sample_dockerfile_content', 'generate_sample_cloudbuild_yaml_content', 'demo_garden_init',
-           'demo_garden_build']
+           'mk_landing_page', 'demo_garden_build']
 
 # %% ../nbs/00_cli.ipynb 2
 from fastcore.script import *
@@ -16,8 +16,7 @@ def generate_sample_requirements_txt():
     """Generates sample requirements.txt"""
     return """
 python-fasthtml
-
-    """
+"""
 
 def generate_sample_readme_content():
     """Generates boiler plate README.md content"""
@@ -30,7 +29,7 @@ To run:
 
 `python app.py`
 
-    """
+"""
 
 def generate_sample_fasthtml_content():
     """Generates boiler plate fasthtml content"""
@@ -142,9 +141,104 @@ def demo_garden_init(project_name: str = None, # this is the path for the direct
     print(f"Demo Garden project initialized successfully in {project_dir}")
 
 # %% ../nbs/00_cli.ipynb 6
+def mk_landing_page():
+    with open("landing.py", "w") as f:
+        f.write("""from app import *
+
+s1 = "Welcome to Demo Garden!"
+
+def page():
+    h2s = ['Welcome']
+    txts = [Markdown(s1)]
+    secs = Sections(h2s, txts)
+    return BstPage(0, "Demo Garden Landing", *secs)
+"""
+        )
+
+
 @call_parse
-def demo_garden_build():
+def demo_garden_build(
+    path:str, # the folder demo garden will use to build `app.py`
+                     ):
     """Build the Demo Garden project."""
-    if not Path(".demogarden").exists():
-        raise ValueError("Error: Not a demo garden project. Run 'demo_garden_init' to initialize this repository ")
-        
+   # if not Path(".demogarden").exists():
+        #raise ValueError("Error: Not a demo garden project. Run 'demo_garden_init' to initialize this repository ")
+    path = Path(path)
+    cat_paths = [c for c in path.ls()] # these are the category paths
+    cat_names = [c.name for c in path.ls()]
+    demos_paths = [d.ls() for d in cat_paths] # these are the demo paths
+    nav_items = [(name, f"/{name}") for name in cat_names]
+    print(nav_items)
+    mk_landing_page()
+    
+    with open("app.py", "w") as f:
+        f.write(f"""
+from fh_bootstrap import *
+from itertools import chain
+from markdown import markdown
+
+md_exts='codehilite', 'smarty', 'extra', 'sane_lists'
+def Markdown(s, exts=md_exts, **kw): return Div(NotStr(markdown(s, extensions=exts)), **kw)
+
+
+def BstPage(selidx, title, *c):
+    navitems = {nav_items}
+    return (
+        Title(title),
+        Script('initTOC()'),
+        Container(
+            Navbar('nav', selidx, items=navitems, cls='navbar-light bg-secondary rounded-lg', placement=PlacementT.Default, expand=SizeT.Md, toggle_left=False),
+            Toc(Container(H1(title, cls='pb-2 pt-1'), *c, cls='mt-3')),
+        typ=ContainerT.Xl, cls='mt-3', data_bs_spy='scroll', data_bs_target='#toc'))
+
+def Sections(h2s, texts):
+    colors = 'yellow', 'pink', 'teal', 'blue'
+    div_cls = 'py-2 px-3 mt-4 bg-light-{None} rounded-tl-lg'
+    return chain([Div(H2(h2, id=f'sec{{i+1}}', cls=div_cls.format(colors[i%4])), Div(txt, cls='px-2'))
+                  for i,(h2,txt) in enumerate(zip(h2s, texts))])
+"""
+        )
+    
+    for cat in cat_paths:
+        with open(f"{cat.name}.py", "w") as f:
+            f.write("from app import *")
+            for demo in cat.ls():
+                    f.write(f"""
+def {demo.name}():
+    with open("demos/{cat.name}/{demo.name}/app.py", "r") as f:
+        contents = f.read()
+    return contents
+""")
+            f.write(f"""
+def page():
+    caption = "Demos for {cat.name}"
+    h2s = {[demo.name for demo in cat.ls()]}
+    txts = {", ".join(f"Markdown({demo.name}())" for demo in cat.ls())}
+    secs = Sections(h2s, txts)
+    return BstPage({cat_names.index(cat.name) + 1}, "{cat.name}", *secs)
+    
+""")
+    # Build app.py
+    with open(f"main.py", "w") as f:
+            f.write(f"""
+from fh_bootstrap import *
+import landing
+import {", ".join(name for name in cat_names)}
+
+hdrs = (
+    Link(href='/assets/hl-styles.css', rel='stylesheet'),
+    Link(href='/assets/styles.css', rel='stylesheet'),
+)
+
+app,rt = fast_app(pico=False, hdrs=bst_hdrs+hdrs, live=False)
+
+app.get("/")(landing.page)
+
+{"\n".join(
+    f"app.get('/{name}')({name}.page)" for name in cat_names
+)}
+
+serve()
+"""
+            )
+    

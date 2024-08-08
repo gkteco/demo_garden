@@ -16,4 +16,5 @@ d = { 'settings': { 'branch': 'main',
                                  'demo_garden.cli.generate_sample_readme_content': ( 'cli.html#generate_sample_readme_content',
                                                                                      'demo_garden/cli.py'),
                                  'demo_garden.cli.generate_sample_requirements_txt': ( 'cli.html#generate_sample_requirements_txt',
-                                                                                       'demo_garden/cli.py')}}}
+                                                                                       'demo_garden/cli.py'),
+                                 'demo_garden.cli.mk_landing_page': ('cli.html#mk_landing_page', 'demo_garden/cli.py')}}}
